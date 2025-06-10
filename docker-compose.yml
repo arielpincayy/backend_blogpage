@@ -1,0 +1,31 @@
+version: '3.9'
+
+services:
+  web:
+    build: ./
+    container_name: blogpage_flask_app
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./:/app
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://postgres:terrioco22verde701*@db:5432/blogdb
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    container_name: postgres_blogpage
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: terrioco22verde701*
+      POSTGRES_DB: blogdb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
