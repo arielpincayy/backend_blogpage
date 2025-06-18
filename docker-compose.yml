@@ -10,6 +10,7 @@ services:
       - ./:/app
     environment:
       - FLASK_ENV=development
+      - JWT_SECRET_KEY=pepepopeyemarino145*84643@111!!1561fwfoimn5665ve1
       - DATABASE_URL=postgresql://postgres:terrioco22verde701*@db:5432/blogdb
     depends_on:
       - db
