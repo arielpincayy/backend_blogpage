@@ -3,3 +3,4 @@ flask-sqlalchemy
 psycopg2-binary
 flask-migrate
 Flask-JWT-Extended
+marshmallow
