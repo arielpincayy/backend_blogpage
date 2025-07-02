@@ -16,6 +16,9 @@ def register():
         schema = UserSchema()
         data = schema.load(request.get_json())
 
+        name = data['name']
+        last_name = data['last_name']
+        admin = False  # Default value for admin
         username = data['username']
         password = data['password_hash']
         email = data['email']
@@ -25,7 +28,7 @@ def register():
         
         #Register the user
         hashed_password = generate_password_hash(password)
-        newUser = User(username=username, email=email, password_hash=hashed_password)
+        newUser = User(name=name, last_name=last_name, username=username, email=email, password_hash=hashed_password, admin=admin)
     
         db.session.add(newUser)
         db.session.commit()

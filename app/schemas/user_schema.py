@@ -5,6 +5,14 @@ class UserSchema(Schema):
     id = fields.Int(dump_only=True, error_messages={
         "invalid": "ID must be an integer."
     })
+    name = fields.Str(required=True, validate=validate.Length(min=1, max=100), error_messages={
+        "required": "Name is required.",
+        "invalid": "Name must be a string with a maximum length of 100 characters."
+    })
+    last_name = fields.Str(required=True, validate=validate.Length(min=1, max=100), error_messages={
+        "required": "Last name is required.",
+        "invalid": "Last name must be a string with a maximum length of 100 characters."
+    })
     username = fields.Str(required=True, validate=validate.Length(min=1, max=50), error_messages={
         "required": "Username is required.",
         "invalid": "Username must be a string with a maximum length of 50 characters."
