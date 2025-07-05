@@ -9,10 +9,6 @@ class BlogSchema(Schema):
         "required": "Title is required.",
         "invalid": "Title must be a string with a maximum length of 100 characters."
     })
-    content = fields.Str(required=True, validate=validate.Length(min=1), error_messages={
-        "required": "Content is required.",
-        "invalid": "Content must be a non-empty string."
-    })
     author_id = fields.Int(dump_only=True, error_messages={
         "invalid": "Author ID must be an integer."
     })

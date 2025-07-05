@@ -15,18 +15,17 @@ blog_bp = Blueprint('blog', __name__)
 @jwt_required()
 def create_post():
     try:
-        schema = BlogSchema(only=('title', 'content', 'tags'))
+        schema = BlogSchema(only=('title', 'tags'))
         data = schema.load(request.get_json())
 
         title = data['title']
-        content = data['content']
         created_at = datetime.now()
         user_id = get_jwt_identity()
         tags = request.json.get('tags', [])
         published = False
 
 
-        post = Post(title=title, content=content, user_id=user_id, published=published, created_at=created_at)
+        post = Post(title=title, user_id=user_id, published=published, created_at=created_at)
 
         # Handle tags
         for tag_name in tags:

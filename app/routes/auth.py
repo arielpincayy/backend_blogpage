@@ -32,8 +32,12 @@ def register():
     
         db.session.add(newUser)
         db.session.commit()
-    
-        return jsonify({"message": "User registered successfully", "username": username}), 201
+        
+        user = User.query.filter_by(username=username).first()
+
+        # Generate JWT token
+        access_token = generate_jwt(user.id, user.username)
+        return jsonify({"message": "User registered successfully", "access_token":access_token}), 201
     
     except ValidationError as err:
         return jsonify({"error": "Validation error", "details": err.messages}), 400

@@ -12,6 +12,7 @@ IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
 FOLDER = 'app/static/uploads/'
 MAXLENGTH_PDF = 10 * 1024 * 1024  # 10 MB
 MAXLENGTH_IMAGE = 5 * 1024 * 1024  # 5 MB
+MAXLENGTH_MDX = 10 * 1024 *1024 # 10 MB
 
 def allowed_image(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in IMAGE_EXTENSIONS
@@ -84,7 +85,7 @@ def upload_image():
     except Exception as e:
         return jsonify({"error": "An error occurred while uploading the image", "details": str(e)}), 500
 
-# Upload image route
+# Upload pdf route
 @upload_bp.route('/pdf', methods=['POST'])
 @jwt_required()
 def upload_pdf():
@@ -123,4 +124,45 @@ def upload_pdf():
         return jsonify({"error": "Validation error", "details": err.messages}), 400
     except Exception as e:
         return jsonify({"error": "An error occurred while uploading the PDF", "details": str(e)}), 500
+    
+
+# Upload mdx route
+@upload_bp.route('/mdx', methods=['POST'])
+@jwt_required()
+def upload_mdx():
+    try:
+        schema = UploadSchema(only=('blog_name'))
+        data = schema.load(request.form)
+        blog_name = slugify(data['blog_name'])
+
+        # Validate the file upload parameters
+        if 'mdx' not in request.files:
+            return jsonify({"error": "No file part"}), 400
+    
+        file = request.files['mdx']
+        if file.filename == '':
+            return jsonify({"error": "No selected file"}), 400
+    
+        if not get_extension(file.filename) == 'mdx':
+            return jsonify({"error": "Only MDX files are allowed"}), 400
+        
+        if file.content_length > MAXLENGTH_MDX:
+            return jsonify({"error": "File size exceeds the maximum limit of 10 MB"}), 400
+
+        # Assign a filename based on its position
+        filename = blog_name + '.mdx'
+        FOLDER_MDXS = os.path.join(FOLDER, 'mdxs', blog_name)
+        os.makedirs(FOLDER_MDXS, exist_ok=True)
+        save_path = os.path.join(FOLDER_MDXS, filename)
+        file.save(save_path)
+    
+        # Generate the URL for the uploaded MDX
+        url = url_for('static', filename=f'uploads/mxds/{filename}', _external=True)
+        return jsonify({"message": "MDX uploaded successfully", "url": url}), 201
+    
+    except ValidationError as err:
+        return jsonify({"error": "Validation error", "details": err.messages}), 400
+    except Exception as e:
+        return jsonify({"error": "An error occurred while uploading the MDX", "details": str(e)}), 500
+    
     
