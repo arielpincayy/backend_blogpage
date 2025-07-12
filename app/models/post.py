@@ -24,7 +24,7 @@ class Post(db.Model):
     title = db.Column(db.String(100), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    status = db.Column(SQLALCHEMYEnum(BlogStatus, name="status_enum"), nullable=False, default=BlogStatus.DRAFT)
+    status = db.Column(SQLALCHEMYEnum(BlogStatus, name="status_enum"), nullable=False, default=BlogStatus.DRAFT.value)
 
     tags = db.relationship('Tag', secondary=post_tags, back_populates='posts')
 

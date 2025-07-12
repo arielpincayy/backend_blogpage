@@ -37,7 +37,7 @@ def register():
 
         # Generate JWT token
         access_token = generate_jwt(user.id, user.username)
-        return jsonify({"message": "User registered successfully", "access_token":access_token}), 201
+        return jsonify({"message": "User registered successfully", "access_token":access_token, "user_id":user.id}), 201
     
     except ValidationError as err:
         return jsonify({"error": "Validation error", "details": err.messages}), 400
@@ -64,7 +64,7 @@ def login():
         # Generate JWT token
         access_token = generate_jwt(user.id, user.username)
     
-        return jsonify({"message": "Login successful", "access_token": access_token}), 200
+        return jsonify({"message": "Login successful", "access_token": access_token, "user_id":user.id}), 200
     
     except ValidationError as err:
         return jsonify({"error": "Validation error", "details": err.messages}), 400

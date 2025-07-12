@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.post import Post
 from app.models.tag import Tag
-from app.schemas.blog_schema import BlogSchema
+from app.schemas.blog_schema import BlogSchema, BlogStatus
 from marshmallow import ValidationError
 from datetime import datetime
 from app.utils.helpers import slugify
@@ -15,14 +15,14 @@ blog_bp = Blueprint('blog', __name__)
 @jwt_required()
 def create_post():
     try:
-        schema = BlogSchema(only=('title', 'tags'))
+        schema = BlogSchema(only=('title', 'tags', 'status'))
         data = schema.load(request.get_json())
 
         title = data['title']
         created_at = datetime.now()
         user_id = get_jwt_identity()
         tags = data['tags']
-        status = data['status']
+        status = BlogStatus(data['status']).value
         
         if Post.query.filter_by(title=title).first() is not None: return jsonify({"error":"A post with that title already exists"}), 400
 
@@ -42,7 +42,7 @@ def create_post():
         return jsonify({"msg": "Post created successfully", "post_id": post.id}), 201
     
     except ValidationError as err:
-        return jsonify({"error": "Validation error", "details": err}), 400
+        return jsonify({"error": "Validation error", "details": err.messages}), 400
     
     except Exception as e:
         db.session.rollback()
@@ -120,10 +120,9 @@ def get_user_posts(user_id):
             post_data = {
                 "id": post.id,
                 "title": post.title,
-                "content": post.content,
                 "created_at": post.created_at.isoformat(),
                 "user_id": post.user_id,
-                "status": post.status,
+                "status": post.status.value,
                 "tags": [tag.name for tag in post.tags]
             }
             posts_data.append(post_data)
