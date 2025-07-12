@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, url_for
 import os
 from app.utils.helpers import slugify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.schemas.upload_schema import UploadSchema
 from marshmallow import ValidationError
 from PIL import Image
@@ -46,6 +46,8 @@ def upload_image():
 
         blog_name = slugify(data['blog_name'])
         number = data['number']
+        
+        userId = get_jwt_identity()
 
         # Validate the file upload parameters
         if 'image' not in request.files:
@@ -64,7 +66,7 @@ def upload_image():
         # Assign a filename based on its position
         extension = get_extension(file.filename)
         filename_temp = number + '.' + extension
-        FOLDER_IMAGES = os.path.join(FOLDER, 'images', blog_name)
+        FOLDER_IMAGES = os.path.join(FOLDER, 'images', userId, blog_name)
         os.makedirs(FOLDER_IMAGES, exist_ok=True)
         save_path_temp = os.path.join(FOLDER_IMAGES, filename_temp)
         file.save(save_path_temp)
@@ -77,7 +79,7 @@ def upload_image():
             os.remove(save_path_temp)
 
         # Generate the URL for the uploaded image
-        url = url_for('static', filename=f'uploads/images/{blog_name}/{filename}', _external=True)
+        url = url_for('static', filename=f'uploads/images/{userId}/{blog_name}/{filename}', _external=True)
         return jsonify({"message": "Image uploaded successfully", "url": url}), 201
     
     except ValidationError as err:
@@ -94,6 +96,8 @@ def upload_pdf():
         data = schema.load(request.form)
         blog_name = slugify(data['blog_name'])
         number = data['number']
+        
+        userId = get_jwt_identity()
 
         # Validate the file upload parameters
         if 'pdf' not in request.files:
@@ -111,13 +115,13 @@ def upload_pdf():
 
         # Assign a filename based on its position
         filename = number + '.pdf'
-        FOLDER_PDFS = os.path.join(FOLDER, 'pdfs', blog_name)
+        FOLDER_PDFS = os.path.join(FOLDER, 'pdfs', userId, blog_name)
         os.makedirs(FOLDER_PDFS, exist_ok=True)
         save_path = os.path.join(FOLDER_PDFS, filename)
         file.save(save_path)
     
         # Generate the URL for the uploaded PDF
-        url = url_for('static', filename=f'uploads/pdfs/{blog_name}/{filename}', _external=True)
+        url = url_for('static', filename=f'uploads/pdfs/{userId}/{blog_name}/{filename}', _external=True)
         return jsonify({"message": "PDF uploaded successfully", "url": url}), 201
     
     except ValidationError as err:
@@ -131,9 +135,11 @@ def upload_pdf():
 @jwt_required()
 def upload_mdx():
     try:
-        schema = UploadSchema(only=('blog_name'))
+        schema = UploadSchema(only=('blog_name',))
         data = schema.load(request.form)
         blog_name = slugify(data['blog_name'])
+
+        userId = get_jwt_identity()
 
         # Validate the file upload parameters
         if 'mdx' not in request.files:
@@ -151,7 +157,7 @@ def upload_mdx():
 
         # Assign a filename based on its position
         filename = blog_name + '.mdx'
-        FOLDER_MDXS = os.path.join(FOLDER, 'mdxs', blog_name)
+        FOLDER_MDXS = os.path.join(FOLDER, 'mdxs', userId)
         os.makedirs(FOLDER_MDXS, exist_ok=True)
         save_path = os.path.join(FOLDER_MDXS, filename)
         file.save(save_path)

@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields, validate
+from marshmallow import Schema, fields
 
 # Schema for file upload validation
 class UploadSchema(Schema):

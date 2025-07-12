@@ -1,5 +1,13 @@
 from app import db
 from datetime import datetime, timezone
+from sqlalchemy import Enum as SQLALCHEMYEnum
+from enum import Enum
+
+class BlogStatus(Enum):
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+    WAITING = "WAITING"
+    REFUSED = "REFUSED"
 
 # Tabla intermedia muchos a muchos
 post_tags = db.Table(
@@ -16,9 +24,9 @@ class Post(db.Model):
     title = db.Column(db.String(100), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    published = db.Column(db.Boolean, default=False)
+    status = db.Column(SQLALCHEMYEnum(BlogStatus, name="status_enum"), nullable=False, default=BlogStatus.DRAFT)
 
-    tags = db.relationship('Tag', secondary=post_tags, backref=db.backref('posts', lazy='dynamic'))
+    tags = db.relationship('Tag', secondary=post_tags, back_populates='posts')
 
     def __repr__(self):
         return f'<Post {self.title}>'

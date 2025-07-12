@@ -1,4 +1,12 @@
 from marshmallow import Schema, fields, validate
+from marshmallow_enum import EnumField
+from enum import Enum
+
+class BlogStatus(Enum):
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+    WAITING = "WAITING"
+    REFUSED = "REFUSED"
 
 # BlogSchema defines the schema for blog posts using Marshmallow.
 class BlogSchema(Schema):
@@ -15,9 +23,9 @@ class BlogSchema(Schema):
     created_at = fields.DateTime(dump_only=True, error_messages={
         "invalid": "Created at must be a valid datetime."
     })
-    published = fields.Bool(required=True, error_messages={
+    status = EnumField(BlogStatus, by_value=True, error_messages={
         "required": "Published status is required.",
-        "invalid": "Published must be a boolean value."
+        "invalid": "Published status not valid."
     })
     tags = fields.List(fields.Str(), required=False, error_messages={
         "invalid": "Tags must be a list of strings."

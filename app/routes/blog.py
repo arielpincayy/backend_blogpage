@@ -21,11 +21,13 @@ def create_post():
         title = data['title']
         created_at = datetime.now()
         user_id = get_jwt_identity()
-        tags = request.json.get('tags', [])
-        published = False
+        tags = data['tags']
+        status = data['status']
+        
+        if Post.query.filter_by(title=title).first() is not None: return jsonify({"error":"A post with that title already exists"}), 400
 
-
-        post = Post(title=title, user_id=user_id, published=published, created_at=created_at)
+        post = Post(title=title, user_id=user_id, status=status, created_at=created_at)
+        db.session.add(post)
 
         # Handle tags
         for tag_name in tags:
@@ -34,18 +36,17 @@ def create_post():
                 tag = Tag(name=tag_name, slug=slugify(tag_name))
                 db.session.add(tag)
             post.tags.append(tag)
-    
-        db.session.add(post)
+
         db.session.commit()
     
         return jsonify({"msg": "Post created successfully", "post_id": post.id}), 201
     
     except ValidationError as err:
-        return jsonify({"msg": "Validation error", "errors": err.messages}), 400
+        return jsonify({"error": "Validation error", "details": err}), 400
     
     except Exception as e:
         db.session.rollback()
-        return jsonify({"msg": "Error creating post", "error": str(e)}), 500
+        return jsonify({"error": "Error creating post", "details": str(e)}), 500
 
 # Get all blog posts
 @blog_bp.route('/posts', methods=['GET'])
@@ -60,14 +61,14 @@ def get_posts():
                 "content": post.content,
                 "created_at": post.created_at.isoformat(),
                 "user_id": post.user_id,
-                "published": post.published,
+                "status": post.status,
                 "tags": [tag.name for tag in post.tags]
             }
             posts_data.append(post_data)
         
         return jsonify(posts_data), 200
     except Exception as e:
-        return jsonify({"msg": "Error retrieving posts", "error": str(e)}), 500
+        return jsonify({"error": "Error retrieving posts", "details": str(e)}), 500
     
 # Get a single blog post by ID
 @blog_bp.route('/posts/<int:post_id>', methods=['GET'])
@@ -80,12 +81,12 @@ def get_post(post_id):
             "content": post.content,
             "created_at": post.created_at.isoformat(),
             "user_id": post.user_id,
-            "published": post.published,
+            "status": post.status,
             "tags": [tag.name for tag in post.tags]
         }
         return jsonify(post_data), 200
     except Exception as e:
-        return jsonify({"msg": "Error retrieving post", "error": str(e)}), 500
+        return jsonify({"error": "Error retrieving post", "details": str(e)}), 500
 
 #Get all posts by a specific title
 @blog_bp.route('/posts/title/<string:title>', methods=['GET'])
@@ -100,14 +101,14 @@ def get_posts_by_title(title):
                 "content": post.content,
                 "created_at": post.created_at.isoformat(),
                 "user_id": post.user_id,
-                "published": post.published,
+                "status": post.status,
                 "tags": [tag.name for tag in post.tags]
             }
             posts_data.append(post_data)
         
         return jsonify(posts_data), 200
     except Exception as e:
-        return jsonify({"msg": "Error retrieving posts by title", "error": str(e)}), 500
+        return jsonify({"error": "Error retrieving posts by title", "details": str(e)}), 500
     
 # Get all posts by a specific user
 @blog_bp.route('/users/<int:user_id>/posts', methods=['GET'])
@@ -122,14 +123,14 @@ def get_user_posts(user_id):
                 "content": post.content,
                 "created_at": post.created_at.isoformat(),
                 "user_id": post.user_id,
-                "published": post.published,
+                "status": post.status,
                 "tags": [tag.name for tag in post.tags]
             }
             posts_data.append(post_data)
         
         return jsonify(posts_data), 200
     except Exception as e:
-        return jsonify({"msg": "Error retrieving user's posts", "error": str(e)}), 500
+        return jsonify({"error": "Error retrieving user's posts", "details": str(e)}), 500
     
 # Get all posts with a specific tag
 @blog_bp.route('/tags/<string:tag_name>/posts', methods=['GET'])
@@ -145,12 +146,12 @@ def get_posts_by_tag(tag_name):
                 "content": post.content,
                 "created_at": post.created_at.isoformat(),
                 "user_id": post.user_id,
-                "published": post.published,
+                "status": post.status,
                 "tags": [t.name for t in post.tags]
             }
             posts_data.append(post_data)
         
         return jsonify(posts_data), 200
     except Exception as e:
-        return jsonify({"msg": "Error retrieving posts by tag", "error": str(e)}), 500
+        return jsonify({"error": "Error retrieving posts by tag", "details": str(e)}), 500
     
