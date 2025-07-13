@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, url_for
+from flask import Blueprint, request, jsonify, url_for, send_from_directory, current_app
 import os
 from app.utils.helpers import slugify
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -9,10 +9,12 @@ from PIL import Image
 upload_bp = Blueprint('upload', __name__)
 
 IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
-FOLDER = 'app/static/uploads/'
 MAXLENGTH_PDF = 10 * 1024 * 1024  # 10 MB
 MAXLENGTH_IMAGE = 5 * 1024 * 1024  # 5 MB
 MAXLENGTH_MDX = 10 * 1024 *1024 # 10 MB
+
+def get_uploads_root():
+    return os.path.join(current_app.root_path, 'static', 'uploads')
 
 def allowed_image(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in IMAGE_EXTENSIONS
@@ -66,6 +68,7 @@ def upload_image():
         # Assign a filename based on its position
         extension = get_extension(file.filename)
         filename_temp = number + '.' + extension
+        FOLDER = get_uploads_root()
         FOLDER_IMAGES = os.path.join(FOLDER, 'images', userId, blog_name)
         os.makedirs(FOLDER_IMAGES, exist_ok=True)
         save_path_temp = os.path.join(FOLDER_IMAGES, filename_temp)
@@ -115,6 +118,7 @@ def upload_pdf():
 
         # Assign a filename based on its position
         filename = number + '.pdf'
+        FOLDER = get_uploads_root()
         FOLDER_PDFS = os.path.join(FOLDER, 'pdfs', userId, blog_name)
         os.makedirs(FOLDER_PDFS, exist_ok=True)
         save_path = os.path.join(FOLDER_PDFS, filename)
@@ -157,13 +161,14 @@ def upload_mdx():
 
         # Assign a filename based on its position
         filename = blog_name + '.mdx'
+        FOLDER = get_uploads_root()
         FOLDER_MDXS = os.path.join(FOLDER, 'mdxs', userId)
         os.makedirs(FOLDER_MDXS, exist_ok=True)
         save_path = os.path.join(FOLDER_MDXS, filename)
         file.save(save_path)
     
         # Generate the URL for the uploaded MDX
-        url = url_for('static', filename=f'uploads/mxds/{filename}', _external=True)
+        url = url_for('static', filename=f'uploads/mdxs/{userId}/{filename}', _external=True)
         return jsonify({"message": "MDX uploaded successfully", "url": url}), 201
     
     except ValidationError as err:
@@ -171,4 +176,8 @@ def upload_mdx():
     except Exception as e:
         return jsonify({"error": "An error occurred while uploading the MDX", "details": str(e)}), 500
     
-    
+@upload_bp.route('/static/uploads/mdx/<int:id>/<path:filename>')
+def serve_mdx(id, filename):
+    FOLDER = get_uploads_root()
+    path_mdx = os.path.join(FOLDER, 'mdxs', str(id))
+    return send_from_directory(path_mdx, filename)

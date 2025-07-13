@@ -1,5 +1,12 @@
 import re
 import unicodedata
+from enum import Enum
+
+class BlogStatus(Enum):
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+    WAITING = "WAITING"
+    REFUSED = "REFUSED"
 
 def slugify(text: str) -> str:
     """

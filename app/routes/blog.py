@@ -7,6 +7,9 @@ from marshmallow import ValidationError
 from datetime import datetime
 from app.utils.helpers import slugify
 from app import db
+import os
+import shutil
+from flask import current_app
 
 blog_bp = Blueprint('blog', __name__)
 
@@ -15,7 +18,7 @@ blog_bp = Blueprint('blog', __name__)
 @jwt_required()
 def create_post():
     try:
-        schema = BlogSchema(only=('title', 'tags', 'status'))
+        schema = BlogSchema(only=('title', 'tags', 'status','url'))
         data = schema.load(request.get_json())
 
         title = data['title']
@@ -23,10 +26,11 @@ def create_post():
         user_id = get_jwt_identity()
         tags = data['tags']
         status = BlogStatus(data['status']).value
+        url = data['url']
         
         if Post.query.filter_by(title=title).first() is not None: return jsonify({"error":"A post with that title already exists"}), 400
 
-        post = Post(title=title, user_id=user_id, status=status, created_at=created_at)
+        post = Post(title=title, user_id=user_id, status=status, created_at=created_at, url=url)
         db.session.add(post)
 
         # Handle tags
@@ -62,6 +66,7 @@ def get_posts():
                 "created_at": post.created_at.isoformat(),
                 "user_id": post.user_id,
                 "status": post.status,
+                "url": post.url,
                 "tags": [tag.name for tag in post.tags]
             }
             posts_data.append(post_data)
@@ -72,16 +77,17 @@ def get_posts():
     
 # Get a single blog post by ID
 @blog_bp.route('/posts/<int:post_id>', methods=['GET'])
+@jwt_required()
 def get_post(post_id):
     try:
         post = Post.query.get_or_404(post_id)
         post_data = {
             "id": post.id,
             "title": post.title,
-            "content": post.content,
             "created_at": post.created_at.isoformat(),
             "user_id": post.user_id,
-            "status": post.status,
+            "status": post.status.value,
+            "url": post.url,
             "tags": [tag.name for tag in post.tags]
         }
         return jsonify(post_data), 200
@@ -102,6 +108,7 @@ def get_posts_by_title(title):
                 "created_at": post.created_at.isoformat(),
                 "user_id": post.user_id,
                 "status": post.status,
+                "url": post.url,
                 "tags": [tag.name for tag in post.tags]
             }
             posts_data.append(post_data)
@@ -123,6 +130,7 @@ def get_user_posts(user_id):
                 "created_at": post.created_at.isoformat(),
                 "user_id": post.user_id,
                 "status": post.status.value,
+                "url": post.url,
                 "tags": [tag.name for tag in post.tags]
             }
             posts_data.append(post_data)
@@ -146,6 +154,7 @@ def get_posts_by_tag(tag_name):
                 "created_at": post.created_at.isoformat(),
                 "user_id": post.user_id,
                 "status": post.status,
+                "url": post.url,
                 "tags": [t.name for t in post.tags]
             }
             posts_data.append(post_data)
@@ -153,4 +162,32 @@ def get_posts_by_tag(tag_name):
         return jsonify(posts_data), 200
     except Exception as e:
         return jsonify({"error": "Error retrieving posts by tag", "details": str(e)}), 500
-    
+
+# Delete a blog post by ID (and its related static content)
+@blog_bp.route('/posts/<int:post_id>', methods=['DELETE'])
+@jwt_required()
+def delete_post(post_id):
+    try:
+        user_id = get_jwt_identity()
+        post = Post.query.get_or_404(post_id)
+
+        if int(post.user_id) != int(user_id):
+            return jsonify({"error": "Unauthorized to delete this post"}), 403
+
+        # Borrar carpetas relacionadas (images, mdxs, pdfs)
+        uploads_base = os.path.join(current_app.root_path, 'static', 'uploads')
+        folders_to_delete = ['images', 'mdxs', 'pdfs']
+        for folder in folders_to_delete:
+            blog_path = os.path.join(uploads_base, folder, str(user_id), post.url)
+            if os.path.exists(blog_path):
+                shutil.rmtree(blog_path)
+
+        # Borrar el post de la base de datos
+        db.session.delete(post)
+        db.session.commit()
+
+        return jsonify({"msg": "Post and related files deleted successfully"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Error deleting post", "details": str(e)}), 500
