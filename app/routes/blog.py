@@ -174,13 +174,18 @@ def delete_post(post_id):
         if int(post.user_id) != int(user_id):
             return jsonify({"error": "Unauthorized to delete this post"}), 403
 
-        # Borrar carpetas relacionadas (images, mdxs, pdfs)
+        # Delete related folders (images, pdfs)
+        slug_title = slugify(post.title)
         uploads_base = os.path.join(current_app.root_path, 'static', 'uploads')
-        folders_to_delete = ['images', 'mdxs', 'pdfs']
+        folders_to_delete = ['images', 'pdfs']
         for folder in folders_to_delete:
-            blog_path = os.path.join(uploads_base, folder, str(user_id), post.url)
+            blog_path = os.path.join(uploads_base, folder, str(user_id), slug_title)
             if os.path.exists(blog_path):
                 shutil.rmtree(blog_path)
+        # Delete .mdx file
+        blog_path_mdx = os.path.join(uploads_base, 'mdxs', str(user_id), slug_title+".mdx")
+        if os.path.exists(blog_path_mdx):
+            os.remove(blog_path_mdx)
 
         # Borrar el post de la base de datos
         db.session.delete(post)
