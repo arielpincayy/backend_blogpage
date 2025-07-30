@@ -30,7 +30,7 @@ def create_post():
         
         if Post.query.filter_by(title=title).first() is not None: return jsonify({"error":"A post with that title already exists"}), 400
 
-        post = Post(title=title, user_id=user_id, status=status, created_at=created_at, url=url)
+        post = Post(title=title, title_slug=slugify(title), user_id=user_id, status=status, created_at=created_at, url=url)
         db.session.add(post)
 
         # Handle tags
@@ -62,6 +62,7 @@ def get_posts():
             post_data = {
                 "id": post.id,
                 "title": post.title,
+                "title_slug":slugify(post.title),
                 "content": post.content,
                 "created_at": post.created_at.isoformat(),
                 "user_id": post.user_id,
@@ -84,6 +85,7 @@ def get_post(post_id):
         post_data = {
             "id": post.id,
             "title": post.title,
+            "title_slug": post.title_slug,
             "created_at": post.created_at.isoformat(),
             "user_id": post.user_id,
             "status": post.status.value,
@@ -93,6 +95,34 @@ def get_post(post_id):
         return jsonify(post_data), 200
     except Exception as e:
         return jsonify({"error": "Error retrieving post", "details": str(e)}), 500
+
+
+#Get a post by title_slug
+@blog_bp.route('/public/<string:title_slug>', methods=['GET'])
+def get_post_by_slug(title_slug):
+    try:
+        post = Post.query.filter_by(title_slug=title_slug).first_or_404()
+
+        if(post.status != BlogStatus.PUBLISHED): return jsonify({"error":"Blog is not published"}), 400
+
+        uploads_base = os.path.join(current_app.root_path, 'static', 'uploads', 'mdxs')
+        mdx_path = os.path.join(uploads_base, str(post.user_id), title_slug + ".mdx")
+
+        # Leer contenido MDX
+        if not os.path.exists(mdx_path):
+            return jsonify({"error": "MDX file not found"}), 404
+
+        with open(mdx_path, 'r', encoding='utf-8') as f:
+            mdx_content = f.read()
+
+        return jsonify({
+            "title": post.title,
+            "creted_at":post.created_at,
+            "content": mdx_content
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": "Error retrieving public post", "details": str(e)}), 500
 
 #Get all posts by a specific title
 @blog_bp.route('/posts/title/<string:title>', methods=['GET'])
@@ -104,7 +134,7 @@ def get_posts_by_title(title):
             post_data = {
                 "id": post.id,
                 "title": post.title,
-                "content": post.content,
+                "title_slug": post.title_slug,
                 "created_at": post.created_at.isoformat(),
                 "user_id": post.user_id,
                 "status": post.status,
@@ -127,6 +157,7 @@ def get_user_posts(user_id):
             post_data = {
                 "id": post.id,
                 "title": post.title,
+                "title_slug": post.title_slug,
                 "created_at": post.created_at.isoformat(),
                 "user_id": post.user_id,
                 "status": post.status.value,
@@ -150,7 +181,7 @@ def get_posts_by_tag(tag_name):
             post_data = {
                 "id": post.id,
                 "title": post.title,
-                "content": post.content,
+                "title_slug": post.title_slug,
                 "created_at": post.created_at.isoformat(),
                 "user_id": post.user_id,
                 "status": post.status,
@@ -167,9 +198,9 @@ def get_posts_by_tag(tag_name):
 @blog_bp.route('/posts/<int:post_id>', methods=['DELETE'])
 @jwt_required()
 def delete_post(post_id):
-    try:
-        user_id = get_jwt_identity()
+    try:        
         post = Post.query.get_or_404(post_id)
+        user_id = get_jwt_identity()
 
         if int(post.user_id) != int(user_id):
             return jsonify({"error": "Unauthorized to delete this post"}), 403
@@ -182,10 +213,12 @@ def delete_post(post_id):
             blog_path = os.path.join(uploads_base, folder, str(user_id), slug_title)
             if os.path.exists(blog_path):
                 shutil.rmtree(blog_path)
-        # Delete .mdx file
+
+        # Delete .mdx and .json files
         blog_path_mdx = os.path.join(uploads_base, 'mdxs', str(user_id), slug_title+".mdx")
-        if os.path.exists(blog_path_mdx):
-            os.remove(blog_path_mdx)
+        blog_path_json = os.path.join(uploads_base, 'jsons', str(user_id), slug_title+".json")
+        os.remove(blog_path_mdx)
+        os.remove(blog_path_json)
 
         # Borrar el post de la base de datos
         db.session.delete(post)

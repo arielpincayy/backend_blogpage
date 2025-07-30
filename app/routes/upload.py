@@ -1,6 +1,6 @@
-from flask import Blueprint, request, jsonify, url_for, send_from_directory, current_app
+from flask import Blueprint, request, jsonify, url_for, current_app
 import os
-from app.utils.helpers import slugify
+from app.utils.helpers import slugify, convertToMDX
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.schemas.upload_schema import UploadSchema
 from marshmallow import ValidationError
@@ -12,6 +12,7 @@ IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
 MAXLENGTH_PDF = 10 * 1024 * 1024  # 10 MB
 MAXLENGTH_IMAGE = 5 * 1024 * 1024  # 5 MB
 MAXLENGTH_MDX = 10 * 1024 *1024 # 10 MB
+MAXLENGTH_JSON = 10 * 1024 *1024 # 10 MB
 
 def get_uploads_root():
     return os.path.join(current_app.root_path, 'static', 'uploads')
@@ -133,11 +134,11 @@ def upload_pdf():
     except Exception as e:
         return jsonify({"error": "An error occurred while uploading the PDF", "details": str(e)}), 500
     
-
-# Upload mdx route
-@upload_bp.route('/mdx', methods=['POST'])
+    
+# Upload json route
+@upload_bp.route('/json', methods=['POST'])
 @jwt_required()
-def upload_mdx():
+def upload_json():
     try:
         schema = UploadSchema(only=('blog_name',))
         data = schema.load(request.form)
@@ -146,38 +147,41 @@ def upload_mdx():
         userId = get_jwt_identity()
 
         # Validate the file upload parameters
-        if 'mdx' not in request.files:
+        if 'json' not in request.files:
             return jsonify({"error": "No file part"}), 400
     
-        file = request.files['mdx']
+        file = request.files['json']
         if file.filename == '':
             return jsonify({"error": "No selected file"}), 400
     
-        if not get_extension(file.filename) == 'mdx':
-            return jsonify({"error": "Only MDX files are allowed"}), 400
+        if not get_extension(file.filename) == 'json':
+            return jsonify({"error": "Only JSON files are allowed"}), 400
         
-        if file.content_length > MAXLENGTH_MDX:
+        if file.content_length > MAXLENGTH_JSON:
             return jsonify({"error": "File size exceeds the maximum limit of 10 MB"}), 400
 
         # Assign a filename based on its position
-        filename = blog_name + '.mdx'
+        filename = blog_name + '.json'
         FOLDER = get_uploads_root()
-        FOLDER_MDXS = os.path.join(FOLDER, 'mdxs', userId)
-        os.makedirs(FOLDER_MDXS, exist_ok=True)
-        save_path = os.path.join(FOLDER_MDXS, filename)
+        FOLDER_JSONS = os.path.join(FOLDER, 'jsons', userId)
+        os.makedirs(FOLDER_JSONS, exist_ok=True)
+        save_path = os.path.join(FOLDER_JSONS, filename)
         file.save(save_path)
+
+        # Save the converted MDX text as a .mdx file in the same folder
+        mdx_text = convertToMDX(save_path)
+        mdx_filename = blog_name + '.mdx'
+        FOLDER_MDXS = os.path.join(FOLDER, 'mdxs', userId)
+        mdx_save_path = os.path.join(FOLDER_MDXS, mdx_filename)
+        os.makedirs(FOLDER_MDXS, exist_ok=True)
+        with open(mdx_save_path, 'w', encoding='utf-8') as mdx_file:
+            mdx_file.write(mdx_text)
     
-        # Generate the URL for the uploaded MDX
-        url = url_for('static', filename=f'uploads/mdxs/{userId}/{filename}', _external=True)
-        return jsonify({"message": "MDX uploaded successfully", "url": url}), 201
+        # Generate the URL for the uploaded JSON
+        url = url_for('static', filename=f'uploads/mdxs/{userId}/{mdx_filename}', _external=True)
+        return jsonify({"message": "JSON uploaded and MDX file created successfully", "url": url}), 201
     
     except ValidationError as err:
         return jsonify({"error": "Validation error", "details": err.messages}), 400
     except Exception as e:
-        return jsonify({"error": "An error occurred while uploading the MDX", "details": str(e)}), 500
-    
-@upload_bp.route('/static/uploads/mdx/<int:id>/<path:filename>')
-def serve_mdx(id, filename):
-    FOLDER = get_uploads_root()
-    path_mdx = os.path.join(FOLDER, 'mdxs', str(id))
-    return send_from_directory(path_mdx, filename)
+        return jsonify({"error": "An error occurred while uploading the JSON or while creating MDX file", "details": str(e)}), 500
